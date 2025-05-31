@@ -1,24 +1,76 @@
 const { StatusCodes } = require("http-status-codes");
+const JobSchema = require("../model/jobSchema");
 
-const getAllJobs = (req, res, next) => {
-	console.log("Test");
-	return res.status(StatusCodes.OK).json({ data: "Get All Jobs" });
+const { NotFound, BadRequest } = require("../errors");
+
+const createJob = async (req, res, next) => {
+	req.body.createdBy = req.user.userId;
+	const job = await JobSchema.create(req.body);
+	return res.status(StatusCodes.CREATED).json({ job });
 };
-const getJobById = (req, res, next) => {
-	console.log("2");
-	return res.status(StatusCodes.OK).json({ data: "Get Job by id" });
+const getAllJobs = async (req, res, next) => {
+	const jobs = await JobSchema.find({ createdBy: req.user.userId }).sort(
+		"createdAt"
+	);
+	return res.status(StatusCodes.OK).json({ jobs });
 };
-const createJob = (req, res, next) => {
-	return res.status(StatusCodes.OK).json({ data: "Create New Job" });
+const getJobById = async (req, res, next) => {
+	const {
+		user: { userId },
+		params: { id: jobId },
+	} = req;
+
+	const job = await JobSchema.findOne({
+		_id: jobId,
+		createdBy: userId,
+	});
+	if (!job) {
+		throw new NotFound(`No Job With ${jobId}`);
+	}
+	return res.status(StatusCodes.OK).json({ job });
 };
-const editJob = (req, res, next) => {
-	console.log("Edit");
-	return res.status(StatusCodes.OK).json({ data: `Edit Job ${req.params.id}` });
+const editJob = async (req, res, next) => {
+	const {
+		body: { company, position },
+		user: { userId },
+		params: { id: jobId },
+	} = req;
+	if (company == " " || position == " ") {
+		throw new BadRequest("Company Or position can not be empty");
+	}
+
+	const job = await JobSchema.findByIdAndUpdate(
+		{
+			_id: jobId,
+			createdBy: userId,
+		},
+		req.body,
+		{ new: true, runValidators: true }
+	);
+	if (!job) {
+		throw new NotFound("No Job With this id");
+	}
+	return res.status(StatusCodes.OK).json({ job });
 };
-const deleteJob = (req, res, next) => {
+
+const deleteJob = async (req, res, next) => {
+	const {
+		user: { userId },
+		params: { id: jobId },
+	} = req;
+
+	const job = await JobSchema.findByIdAndDelete({
+		_id: jobId,
+		createdBy: userId,
+	});
+
+	if (!job) {
+		throw new NotFound("No Job With this id");
+	}
+
 	return res
 		.status(StatusCodes.OK)
-		.json({ data: `Delete Job with id ${req.params.id}` });
+		.json({ msg: `Delete Job with id ${req.params.id}` });
 };
 
 module.exports = {
