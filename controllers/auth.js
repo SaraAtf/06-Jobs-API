@@ -1,12 +1,12 @@
 const { StatusCodes } = require("http-status-codes");
 
 const userSchema = require("../model/authSchema");
-const { BadRequest } = require("../errors");
+const { BadRequest, NotFound } = require("../errors");
 const Unauthonticated = require("../errors/unauthonticated");
 const register = async (req, res, next) => {
 	const user = await userSchema.create({ ...req.body });
 	const token = user.createJWT();
-	return res.status(StatusCodes.CREATED).json({ token });
+	return res.status(StatusCodes.CREATED).json({ user, token });
 };
 const login = async (req, res, next) => {
 	const { email, password } = req.body;
@@ -24,10 +24,34 @@ const login = async (req, res, next) => {
 		throw new Unauthonticated("Invalid credentials");
 	}
 	const token = user.createJWT();
-	return res.status(StatusCodes.OK).json({ user: user.name, token });
+	return res.status(StatusCodes.OK).json({ user: user, token });
 };
 
+const updateUser = async (req, res, next) => {
+	const {
+		user: { userId },
+		body: { name, email, location, lastName },
+	} = req;
+	console.log(req.user);
+
+	// if (!name || !email || !location || !lastName) {
+	// 	throw new BadRequest("Provide All Values");
+	// }
+
+	const user = await userSchema.findByIdAndUpdate({ _id: userId }, req.body, {
+		new: true,
+		runValidators: true,
+	});
+
+	if (!user) {
+		throw new NotFound("This user is Not Found");
+	}
+	const token = user.createJWT();
+
+	return res.status(200).json({ user, token });
+};
 module.exports = {
 	register,
 	login,
+	updateUser,
 };

@@ -1,15 +1,11 @@
 const connectDB = require("./db/connect");
 const express = require("express");
 require("dotenv").config();
+const path = require("path");
 
 // Routes
 const authRouter = require("./routes/auth");
 const jobRouter = require("./routes/jobs");
-
-// security packages
-const rateLimit = require("express-rate-limit");
-const helmet = require("helmet");
-const cors = require("cors");
 
 // MW
 const { errorMW, notFoundMW, authMW } = require("./Middleware");
@@ -17,21 +13,18 @@ const { errorMW, notFoundMW, authMW } = require("./Middleware");
 // start express Server
 const app = express();
 const PORT = process.env.PORT || 3000;
-//security Packages
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
-});
-app.use(limiter);
+
+// Serve static files from the React build directory
+app.use(express.static(path.resolve(__dirname, "./client/build")));
 
 // Static MW
 app.use(express.json());
-app.use(cors());
-app.use(helmet());
 
-// Routes
+// API Routes
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/jobs", authMW, jobRouter);
+
+// Handle React routing, return all requests to React app
 
 // CustomMW
 app.use(notFoundMW);
@@ -44,7 +37,9 @@ const start = async () => {
 		app.listen(PORT, () => {
 			console.log("Server is listening at ", PORT);
 		});
-	} catch (error) {}
+	} catch (error) {
+		console.log(error);
+	}
 };
 
 start();
